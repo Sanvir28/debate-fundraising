@@ -108,7 +108,6 @@ input,select{
 
 </div>
 
-<!-- MODAL -->
 <div id="popup" class="modal">
 <div class="modal-content">
 
@@ -137,7 +136,6 @@ input,select{
 
 <script type="module">
 
-// 🔥 YOUR FIREBASE (already filled)
 const firebaseConfig = {
   apiKey: "AIzaSyC5R__Q57cK4qV_3KWvmN7rQqMAyI5N9rA",
   authDomain: "debate-fundraising.firebaseapp.com",
@@ -156,7 +154,7 @@ const db = getFirestore(app);
 
 let editId = null;
 
-// ---------- FORM ----------
+
 window.openForm = function(entry=null){
     document.getElementById("popup").style.display="block";
     document.getElementById("items").innerHTML="";
@@ -181,7 +179,7 @@ window.closeForm = function(){
     popup.style.display="none";
 }
 
-// ---------- ITEMS ----------
+
 window.addItem = function(name="",price=""){
     const div=document.createElement("div");
     div.className="item-row";
@@ -192,7 +190,7 @@ window.addItem = function(name="",price=""){
     items.appendChild(div);
 }
 
-// ---------- CALC ----------
+
 window.calc = function(){
     let total=0;
     document.querySelectorAll(".item-row").forEach(r=>{
@@ -203,7 +201,7 @@ window.calc = function(){
     balance.value = total - out;
 }
 
-// ---------- SAVE ----------
+
 window.save = async function(){
 
     const data = {
@@ -234,14 +232,14 @@ window.save = async function(){
     load();
 }
 
-// ---------- DELETE ----------
+
 window.del = async function(id){
     if(!confirm("Delete entry?")) return;
     await deleteDoc(doc(db,"entries",id));
     load();
 }
 
-// ---------- LOAD ----------
+
 async function load(){
     const snap = await getDocs(collection(db,"entries"));
     const table = document.getElementById("table");
@@ -267,7 +265,7 @@ async function load(){
 
         const bal = (r.money_in||0) - (r.money_out||0);
 
-        // ✅ NEW LOGIC
+        
         totalBalance += bal;
 
         if(bal >= 0){
@@ -295,7 +293,7 @@ async function load(){
         table.appendChild(tr);
     });
 
-    // ✅ UPDATE UI
+    
     const incEl = document.getElementById("inc");
     const expEl = document.getElementById("exp");
     const balEl = document.getElementById("bal");
@@ -304,7 +302,7 @@ async function load(){
     expEl.textContent = "$" + totalExpense;
     balEl.textContent = "$" + totalBalance;
 
-    // ✅ COLORS
+   
     incEl.style.color = totalIncome >= 0 ? "#22c55e" : "#ef4444";
     expEl.style.color = totalExpense > 0 ? "#ef4444" : "#22c55e";
     balEl.style.color = totalBalance >= 0 ? "#22c55e" : "#ef4444";
