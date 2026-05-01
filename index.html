@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Debate Fundraising</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Inter',sans-serif;}
+body{background:#0f172a;color:#e2e8f0;}
+
+header{
+    padding:20px;
+    text-align:center;
+    font-size:22px;
+    font-weight:600;
+    background:#020617;
+    border-bottom:1px solid #1e293b;
+}
+
+.container{max-width:1100px;margin:auto;padding:20px;}
+
+.btn{
+    padding:10px 16px;
+    border:none;
+    border-radius:8px;
+    cursor:pointer;
+    font-weight:500;
+}
+.btn-primary{background:#3b82f6;color:white;}
+.btn-danger{background:#ef4444;color:white;}
+.btn-secondary{background:#1e293b;color:white;}
+
+.summary{display:flex;gap:15px;margin:20px 0;}
+.card{
+    flex:1;
+    background:#020617;
+    padding:15px;
+    border-radius:12px;
+    border:1px solid #1e293b;
+}
+.card h3{font-size:14px;color:#94a3b8;}
+.card p{font-size:20px;font-weight:600;}
+
+table{
+    width:100%;
+    border-collapse:collapse;
+    background:#020617;
+    border-radius:10px;
+    overflow:hidden;
+}
+th,td{padding:12px;text-align:center;}
+th{color:#94a3b8;font-size:13px;}
+tr{border-bottom:1px solid #1e293b;}
+tr:hover{background:#1e293b;}
+
+.income{color:#22c55e;}
+.expense{color:#ef4444;}
+
+.modal{
+    display:none;
+    position:fixed;
+    inset:0;
+    background:rgba(0,0,0,0.6);
+    overflow:auto;
+}
+.modal-content{
+    background:#020617;
+    margin:50px auto;
+    padding:20px;
+    border-radius:12px;
+    width:90%;
+    max-width:420px;
+}
+
+input,select{
+    width:100%;
+    padding:10px;
+    margin:6px 0;
+    border-radius:6px;
+    border:1px solid #1e293b;
+    background:#0f172a;
+    color:white;
+}
+
+.item-row{display:flex;gap:5px;}
+.item-row input{flex:1;}
+</style>
+</head>
+
+<body>
+
+<header>💰 Debate Fundraising</header>
+
+<div class="container">
+
+<button class="btn btn-primary" onclick="openForm()">+ Add Entry</button>
+
+<div class="summary">
+    <div class="card"><h3>Income</h3><p id="inc">$0</p></div>
+    <div class="card"><h3>Expenses</h3><p id="exp">$0</p></div>
+    <div class="card"><h3>Balance</h3><p id="bal">$0</p></div>
+</div>
+
+<table id="table"></table>
+
+</div>
+
+<!-- MODAL -->
+<div id="popup" class="modal">
+<div class="modal-content">
+
+<h3>Entry</h3>
+
+<input id="date" type="date">
+<select id="type">
+<option>Income</option>
+<option>Expense</option>
+</select>
+
+<div id="items"></div>
+<button class="btn btn-secondary" onclick="addItem()">+ Item</button>
+
+<input id="moneyOut" type="number" placeholder="Money Out" oninput="calc()">
+<input id="balance" disabled placeholder="Balance">
+
+<input id="notes" placeholder="Notes">
+
+<br>
+<button class="btn btn-primary" onclick="save()">Save</button>
+<button class="btn btn-secondary" onclick="closeForm()">Cancel</button>
+
+</div>
+</div>
+
+<script type="module">
+
+// 🔥 YOUR FIREBASE (already filled)
+const firebaseConfig = {
+  apiKey: "AIzaSyC5R__Q57cK4qV_3KWvmN7rQqMAyI5N9rA",
+  authDomain: "debate-fundraising.firebaseapp.com",
+  projectId: "debate-fundraising",
+  storageBucket: "debate-fundraising.firebasestorage.app",
+  messagingSenderId: "628387380197",
+  appId: "1:628387380197:web:9bfe14ae348dcb4508cd0c"
+};
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, updateDoc }
+from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+let editId = null;
+
+// ---------- FORM ----------
+window.openForm = function(entry=null){
+    document.getElementById("popup").style.display="block";
+    document.getElementById("items").innerHTML="";
+
+    if(entry){
+        editId = entry.id;
+        date.value = entry.date;
+        type.value = entry.type;
+        notes.value = entry.notes || "";
+        moneyOut.value = entry.money_out || "";
+
+        entry.items.forEach(i=>addItem(i.name,i.price));
+    } else {
+        editId = null;
+        addItem();
+    }
+
+    calc();
+}
+
+window.closeForm = function(){
+    popup.style.display="none";
+}
+
+// ---------- ITEMS ----------
+window.addItem = function(name="",price=""){
+    const div=document.createElement("div");
+    div.className="item-row";
+    div.innerHTML=`
+    <input value="${name}" placeholder="Item">
+    <input value="${price}" type="number" placeholder="Price" oninput="calc()">
+    `;
+    items.appendChild(div);
+}
+
+// ---------- CALC ----------
+window.calc = function(){
+    let total=0;
+    document.querySelectorAll(".item-row").forEach(r=>{
+        total += parseFloat(r.children[1].value)||0;
+    });
+
+    let out = parseFloat(moneyOut.value)||0;
+    balance.value = total - out;
+}
+
+// ---------- SAVE ----------
+window.save = async function(){
+
+    const data = {
+        date: date.value,
+        type: type.value,
+        notes: notes.value,
+        items: [],
+        money_in: 0,
+        money_out: parseFloat(moneyOut.value)||0
+    };
+
+    document.querySelectorAll(".item-row").forEach(r=>{
+        const n=r.children[0].value;
+        const p=parseFloat(r.children[1].value)||0;
+        if(n){
+            data.items.push({name:n,price:p});
+            data.money_in += p;
+        }
+    });
+
+    if(editId){
+        await updateDoc(doc(db,"entries",editId), data);
+    } else {
+        await addDoc(collection(db,"entries"), data);
+    }
+
+    closeForm();
+    load();
+}
+
+// ---------- DELETE ----------
+window.del = async function(id){
+    if(!confirm("Delete entry?")) return;
+    await deleteDoc(doc(db,"entries",id));
+    load();
+}
+
+// ---------- LOAD ----------
+async function load(){
+    const snap = await getDocs(collection(db,"entries"));
+    const table = document.getElementById("table");
+
+    table.innerHTML=`
+    <tr>
+    <th>ID</th><th>Date</th><th>Type</th>
+    <th>Items</th><th>In</th><th>Out</th><th>Bal</th><th></th>
+    </tr>`;
+
+    let totalBalance = 0;
+    let totalIncome = 0;
+    let totalExpense = 0;
+
+    snap.forEach(docSnap=>{
+        const r = docSnap.data();
+        const id = docSnap.id;
+
+        let itemsHTML="";
+        r.items?.forEach(i=>{
+            itemsHTML += `${i.name} ($${i.price})<br>`;
+        });
+
+        const bal = (r.money_in||0) - (r.money_out||0);
+
+        // ✅ NEW LOGIC
+        totalBalance += bal;
+
+        if(bal >= 0){
+            totalIncome += bal;
+        } else {
+            totalExpense += Math.abs(bal);
+        }
+
+        const tr=document.createElement("tr");
+
+        tr.innerHTML=`
+        <td>${id}</td>
+        <td>${r.date}</td>
+        <td class="${r.type==='Income'?'income':'expense'}">${r.type}</td>
+        <td>${itemsHTML}</td>
+        <td>$${r.money_in||0}</td>
+        <td>$${r.money_out||0}</td>
+        <td class="${bal>=0?'income':'expense'}">$${bal}</td>
+        <td>
+        <button class="btn btn-secondary" onclick='openForm(${JSON.stringify({...r,id})})'>✏️</button>
+        <button class="btn btn-danger" onclick='del("${id}")'>🗑️</button>
+        </td>
+        `;
+
+        table.appendChild(tr);
+    });
+
+    // ✅ UPDATE UI
+    const incEl = document.getElementById("inc");
+    const expEl = document.getElementById("exp");
+    const balEl = document.getElementById("bal");
+
+    incEl.textContent = "$" + totalIncome;
+    expEl.textContent = "$" + totalExpense;
+    balEl.textContent = "$" + totalBalance;
+
+    // ✅ COLORS
+    incEl.style.color = totalIncome >= 0 ? "#22c55e" : "#ef4444";
+    expEl.style.color = totalExpense > 0 ? "#ef4444" : "#22c55e";
+    balEl.style.color = totalBalance >= 0 ? "#22c55e" : "#ef4444";
+}
+
+load();
+
+</script>
+</body>
+</html>
